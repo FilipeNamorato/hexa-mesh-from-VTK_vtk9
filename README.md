@@ -4,7 +4,6 @@ To compile:
 
 ```sh
 $ cmake .
-
 $ make
 ```
 
