@@ -29,6 +29,17 @@ void usage(char *p_name) {
 	exit(1);
 }
 
+#define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
+#define PBWIDTH 60
+
+void print_progress(double percentage) {
+    int val = (int) (percentage * 100);
+    int lpad = (int) (percentage * PBWIDTH);
+    int rpad = PBWIDTH - lpad;
+    printf("\rProgress - %3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
+    fflush(stdout);
+}
+
 int main(int argc, char *argv[]) {
 
 	if(argc != 7) usage(argv[0]);
@@ -206,11 +217,8 @@ int main(int argc, char *argv[]) {
 
             for (int z = 0; z < total_points_z; ++z) {
 
-				double percentage = ((double)count / (double)total_points)*100.0;
-
-				if(	fabsf((int)percentage - percentage) < 0.0001 ) {
-					printf("adding point %d of %d - %.2lf%% completed\n", count, total_points, percentage);	
-				}
+				double percentage = ((double)count / (double)total_points);
+				print_progress(percentage);
 				count++;
 
                 center_point[0] = centerx;
@@ -221,7 +229,6 @@ int main(int argc, char *argv[]) {
 				
 					static int add_counter = 0;
 
-                    //Find the closest points to TestPoint
                     double closestPoint[3];  //the coordinates of the closest point will be returned here
                     double closestPointDist2;//the squared distance to the closest point will be returned here
                     vtkIdType cellId;        //the cell id of the cell containing the closest point will be returned here
@@ -350,4 +357,6 @@ int main(int argc, char *argv[]) {
     writer->SetInputData(ug);
     writer->SetFileName("converted_mesh.vtu");
     writer->Write();
+	
+	cout << endl;
 }
