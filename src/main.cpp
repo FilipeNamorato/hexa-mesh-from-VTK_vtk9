@@ -22,12 +22,23 @@
 
 #include "config.h"
 
+#include "ProgramOptions.hxx"
+#include <iostream>
+
+
 void usage(char *p_name) {
-    cerr << "Usage: " << p_name
-         << " vtk_mesh new_mesh_dx new_mesh_dy new_mesh_dz unit_conversion_rate"
-            " output_filename  [extra_config.ini]"
-         << endl;
-    exit(1);
+    std::cerr << "Usage: " << p_name << " [options]" << std::endl << std::endl;
+    std::cerr << "Options:" <<  std::endl;
+    std::cerr << "--input_mesh | -i, file VTU file containing the mesh to be converted (required)" << std::endl;
+    std::cerr << "--dx | -x, X discretization of the converted mesh (same unit as the original mesh, required)" << std::endl;
+    std::cerr << "--dy | -y, Y discretization of the converted mesh (same unit as the original mesh, required)" << std::endl;
+    std::cerr << "--dz | -z, Z discretization of the converted mesh (same unit as the original mesh, required)" << std::endl;
+    std::cerr << "--conversion_rate | -r, rate that needs to be applied to convert the original mesh size unit to micrometers (optional, default: 1)" << std::endl;
+    std::cerr << "--output_file | -o, name of the converted mesh file (optional, default: converted_mesh.alg)" << std::endl;
+    std::cerr << "--config_file | -c, name of .ini file that has the configuration to extract the arrays data from the VTU file (optional, default: not used)" << std::endl;
+    std::cerr << "--help | -h. Shows this help and exit" << std::endl;
+    exit(EXIT_FAILURE);
+
 }
 
 #define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
@@ -55,36 +66,99 @@ void print_progress(double percentage) {
     fflush(stdout);
 }
 
-
 int main(int argc, char *argv[]) {
 
-    if (!(argc == 7 || argc == 8)) {
+	po::parser parser;
+    auto& input_mesh_opt = parser["input_mesh"]
+		.abbreviation('i')            
+        .type(po::string);            
+
+	auto& desired_dx_opt = parser["dx"]  
+		.abbreviation('x')            
+        .type(po::f64);            
+
+	auto& desired_dy_opt = parser["dy"]  
+		.abbreviation('y')            
+        .type(po::f64);
+
+	auto& desired_dz_opt = parser["dz"]  
+		.abbreviation('z')            
+        .type(po::f64);            
+
+	auto& conversion_rate_opt = parser["conversion_rate"]
+		.abbreviation('r')            
+        .type(po::f64)
+        .fallback(1.0);
+
+	auto& output_file_opt = parser["output_file"]  
+		.abbreviation('o')            
+        .type(po::string)
+		.fallback("converted_mesh.alg");  
+
+	auto& config_file_opt = parser["config_file"]  
+		.abbreviation('c')            
+        .type(po::string);
+
+    auto& help_opt = parser["help"]
+            .abbreviation('h');
+
+    parser(argc, argv);               // parses the command line arguments
+
+    if(help_opt.was_set()) {
         usage(argv[0]);
     }
 
-    if (!valid_extension(argv[1])) {
+	bool error = !input_mesh_opt.available() || !desired_dx_opt.available() || !desired_dy_opt.available() || !desired_dz_opt.available();
+
+    if(error) {
+        std::cout << "Wrong number of arguments!" << std::endl << std::endl;
+		usage(argv[0]);
+	}
+
+	auto input_file = input_mesh_opt.get().string;
+
+    if (!valid_extension(input_file)) {
         cerr << "Invalid input file! Please convert your mesh to VTU format (.vtu extension)!" << endl;
         exit(EXIT_FAILURE);
     }
 
+    cout << "================================================================================" << endl;
+    cout << "Conversion configuration:" << endl;
+    cout << "================================================================================" << endl;
+    cout << "Input mesh file: " << input_file << endl;
+    cout << "Target dx: " << desired_dx_opt.get().f64 << endl;
+    cout << "Target dy: " << desired_dy_opt.get().f64 << endl;
+    cout << "Target dz: " << desired_dz_opt.get().f64 << endl;
+    cout << "Conversion rate: " << conversion_rate_opt.get().f64 << endl;
+    cout << "Output file: " << output_file_opt.get().string << endl;
+    if(config_file_opt.was_set()) {
+        cout << "Configuration file: " << config_file_opt.get().string << endl;
+    }
+    else {
+        cout << "Data arrays will not be extracted from the input mesh" << endl;
+    }
+    cout << "================================================================================" << endl << endl;
+
+	//TODO: print usage and print the input configurations on the screen
+
     std::vector<dataConfig> *configs = nullptr;
 
-    std::cout << "Start reading mesh from " << argv[1] << std::endl;
+    std::cout << "Start reading mesh from " << input_file << std::endl;
 
     vtkSmartPointer<vtkXMLUnstructuredGridReader> reader =
             vtkSmartPointer<vtkXMLUnstructuredGridReader>::New();
 
-    reader->SetFileName(argv[1]);
+    reader->SetFileName(input_file.c_str());
     reader->Update();
 
-    double dx = strtod(argv[2], nullptr);
-    double dy = strtod(argv[3], nullptr);
-    double dz = strtod(argv[4], nullptr);
+    double dx = desired_dx_opt.get().f64;
+    double dy = desired_dy_opt.get().f64; 
+    double dz = desired_dz_opt.get().f64;
 
-    double conversion_rate = strtod(argv[5], nullptr);
+    double conversion_rate = conversion_rate_opt.get().f64; 
 
     ofstream converted_mesh;
-    converted_mesh.open (argv[6]);
+    converted_mesh.open (output_file_opt.get().string);
 
     double bounds[6];
 
@@ -108,8 +182,8 @@ int main(int argc, char *argv[]) {
 
     vtkDataSet *data = vtkDataSet::SafeDownCast(tf->GetOutput());
 
-    if(argc == 8) {
-        configs = parse_ini_config(argv[7], data);
+    if(config_file_opt.available()) {
+        configs = parse_ini_config(config_file_opt.get().string, data);
     }
 
     vtkSmartPointer<vtkPointLocator> pointLoc =
@@ -139,7 +213,7 @@ int main(int argc, char *argv[]) {
 
     meshData->GetBounds(bounds);
 
-    cout << "End reading mesh from " << argv[1] << endl;
+    cout << "End reading mesh" << endl;
 
     double mesh_max_x = bounds[1], mesh_max_y = bounds[3], mesh_max_z = bounds[5];
 

@@ -6,7 +6,7 @@ include(${VTK_USE_FILE})
  
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_executable(HexaMeshFromVTK src/main.cpp src/config.cpp)
+add_executable(HexaMeshFromVTK src/main.cpp src/config.cpp src/ProgramOptions.hxx)
 
 if(VTK_LIBRARIES)
   target_link_libraries(HexaMeshFromVTK ${VTK_LIBRARIES})
