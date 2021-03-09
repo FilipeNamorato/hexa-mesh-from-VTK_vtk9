@@ -33,3 +33,15 @@
 *.alg 
 *.vtu
 *.vtk
+
+.ccls-cache/
+.idea/
+CMakeCache.txt
+CMakeFiles/
+HexaMeshFromVTK.cbp
+Makefile
+Testing/
+bin/
+cmake-build-release/
+cmake_install.cmake
+
