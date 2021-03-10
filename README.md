@@ -10,6 +10,6 @@ $ make
 Usage:
 
 ```sh
-$ ./bin/HexaMeshFromVTK vtk_mesh new_mesh_dx new_mesh_dy new_mesh_dz unit_conversion_rate output_filename 
+$ ./bin/HexaMeshFromVTK -i vtk_mesh --dx new_mesh_dx --dy new_mesh_dy --dz new_mesh_dz -r unit_conversion_rate -o output_filename -c config_file
 ```
 
