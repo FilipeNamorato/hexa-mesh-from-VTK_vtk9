@@ -360,7 +360,7 @@ int main(int argc, char *argv[]) {
                             vtkIdType dataLocation;
                             double dataValue;
 
-                            if(config.location == CELL) {
+                            if(config.location == CELL_LOCATION) {
                                 dataLocation = cellId;
                             }
                             else {
@@ -369,14 +369,14 @@ int main(int argc, char *argv[]) {
 
                             if(config.nComponents == 1) {
                                 switch (config.type) {
-                                    case INT:
+                                    case INT_TYPE:
                                         dataValue = (double) config.intArray->GetValue(dataLocation);
                                         break;
-                                    case FLOAT:
+                                    case FLOAT_TYPE:
                                         dataValue = (double) config.floatArray->GetValue(dataLocation);
                                         break;
 
-                                    case DOUBLE:
+                                    case DOUBLE_TYPE:
                                         dataValue = (double) config.doubleArray->GetValue(dataLocation);
                                         break;
                                 }

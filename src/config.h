@@ -10,14 +10,14 @@
 #include <vtkDataSet.h>
 
 enum dataType {
-    DOUBLE,
-    INT,
-    FLOAT,
+    DOUBLE_TYPE,
+    INT_TYPE,
+    FLOAT_TYPE,
 };
 
 enum dataLocation {
-    CELL,
-    POINT
+    CELL_LOCATION,
+    POINT_LOCATION
 };
 
 struct dataConfig {

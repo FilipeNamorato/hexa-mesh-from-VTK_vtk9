@@ -33,13 +33,13 @@ std::vector<dataConfig> * parse_ini_config(const std::string &ini_filename, vtkD
 
 			if(property_name == "type") {
 				if(property_value == "int") {
-					config.type = INT;
+					config.type = INT_TYPE;
 				}
 				else if(property_value == "double") {
-					config.type = DOUBLE;
+					config.type = DOUBLE_TYPE;
 				}
 				else if(property_value == "float") {
-					config.type = FLOAT;
+					config.type = FLOAT_TYPE;
 				}
 				else {
 					std::cerr << "Invalid property value '" << property_value << "' for property type, on section [" << section_name << "]" << std::endl;
@@ -49,10 +49,10 @@ std::vector<dataConfig> * parse_ini_config(const std::string &ini_filename, vtkD
 			}
 			else if (property_name == "location") {
 				if(property_value == "cell") {
-					config.location = CELL;
+					config.location = CELL_LOCATION;
 				}
 				else if(property_value == "point") {
-					config.location = POINT;
+					config.location = POINT_LOCATION;
 				}
 				else {
 					std::cerr << "Invalid property value '" << property_value << "' for property location, on section [" << section_name << "]" << std::endl;
@@ -80,9 +80,9 @@ std::vector<dataConfig> * parse_ini_config(const std::string &ini_filename, vtkD
         //Loading the data arrays from the vtk file
         if(config.nComponents == 1) {
             switch (config.type) {
-                case INT:
+                case INT_TYPE:
                 {
-                    if (config.location == CELL) {
+                    if (config.location == CELL_LOCATION) {
                         config.intArray = vtkIntArray::SafeDownCast(data->GetCellData()->GetAbstractArray(config.dataName.c_str()));
                     } else {
                         config.intArray = vtkIntArray::SafeDownCast(data->GetPointData()->GetAbstractArray(config.dataName.c_str()));
@@ -90,9 +90,9 @@ std::vector<dataConfig> * parse_ini_config(const std::string &ini_filename, vtkD
                 }
                     break;
 
-                case FLOAT:
+                case FLOAT_TYPE:
                 {
-                    if (config.location == CELL) {
+                    if (config.location == CELL_LOCATION) {
                         config.floatArray = vtkFloatArray::SafeDownCast(data->GetCellData()->GetAbstractArray(config.dataName.c_str()));
                     } else {
                         config.floatArray = vtkFloatArray::SafeDownCast(data->GetPointData()->GetAbstractArray(config.dataName.c_str()));
@@ -101,9 +101,9 @@ std::vector<dataConfig> * parse_ini_config(const std::string &ini_filename, vtkD
                 }
                     break;
 
-                case DOUBLE:
+                case DOUBLE_TYPE:
                 {
-                    if (config.location == CELL) {
+                    if (config.location == CELL_LOCATION) {
                         config.doubleArray = vtkDoubleArray::SafeDownCast(data->GetCellData()->GetAbstractArray(config.dataName.c_str()));
                     } else {
                         config.doubleArray = vtkDoubleArray::SafeDownCast(data->GetPointData()->GetAbstractArray(config.dataName.c_str()));
@@ -114,7 +114,7 @@ std::vector<dataConfig> * parse_ini_config(const std::string &ini_filename, vtkD
             }
         }
         else {
-            if (config.location == CELL) {
+            if (config.location == CELL_LOCATION) {
                 config.dataArray = vtkDataArray::SafeDownCast(data->GetCellData()->GetAbstractArray(config.dataName.c_str()));
             } else {
                 config.dataArray = vtkDataArray::SafeDownCast(data->GetPointData()->GetAbstractArray(config.dataName.c_str()));
