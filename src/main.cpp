@@ -25,7 +25,6 @@
 #include "ProgramOptions.hxx"
 #include <iostream>
 
-
 void usage(char *p_name) {
     std::cerr << "Usage: " << p_name << " [options]" << std::endl << std::endl;
     std::cerr << "Options:" <<  std::endl;
@@ -44,6 +43,14 @@ void usage(char *p_name) {
 #define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
 #define PBWIDTH 60
 
+void print_progress(double percentage) {
+    int val = (int) (percentage * 100);
+    int lpad = (int) (percentage * PBWIDTH);
+    int rpad = PBWIDTH - lpad;
+    printf("\rProgress - %3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
+    fflush(stdout);
+}
+
 bool valid_extension(const std::string& filename) {
 
     std::string::size_type idx;
@@ -56,14 +63,6 @@ bool valid_extension(const std::string& filename) {
     } else {
         return false;
     }
-}
-
-void print_progress(double percentage) {
-    int val = (int) (percentage * 100);
-    int lpad = (int) (percentage * PBWIDTH);
-    int rpad = PBWIDTH - lpad;
-    printf("\rProgress - %3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
-    fflush(stdout);
 }
 
 int main(int argc, char *argv[]) {
