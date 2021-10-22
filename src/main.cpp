@@ -165,21 +165,33 @@ int main(int argc, char *argv[]) {
 
     double mesh_min_x = bounds[0], mesh_min_y = bounds[2], mesh_min_z = bounds[4];
 
-    vtkSmartPointer<vtkTransform> t =
-            vtkSmartPointer<vtkTransform>::New();
+    vtkDataSet *data;
+	vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints =  vtkSmartPointer<vtkSelectEnclosedPoints>::New();
+	//Translating the original mesh
+	vtkSmartPointer<vtkTransform> t = vtkSmartPointer<vtkTransform>::New();
+	t->Translate(-mesh_min_x, -mesh_min_y, -mesh_min_z);
 
-    t->Translate(-mesh_min_x, -mesh_min_y, -mesh_min_z);
+	vtkSmartPointer<vtkTransformFilter> tf = vtkSmartPointer<vtkTransformFilter>::New();
 
-    vtkSmartPointer<vtkTransformFilter> tf =
-            vtkSmartPointer<vtkTransformFilter>::New();
+	cout << "Translating mesh to 0, 0, 0" << endl;
+	tf->SetInputData(reader->GetOutput());
+	tf->SetTransform(t);
+	tf->Update();
+	
+	//This is used to extract the arrays in the VTU mesh
+	data = vtkDataSet::SafeDownCast(tf->GetOutput());
 
+	
+	vtkSmartPointer<vtkDataSetSurfaceFilter> surfaceFilter = vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
+	surfaceFilter->SetInputData(tf->GetOutput());
+	surfaceFilter->Update();
+	{
+		vtkPolyData *meshData = surfaceFilter->GetOutput();
 
-    cout << "Translating mesh to 0, 0, 0" << endl;
-    tf->SetInputData(reader->GetOutput());
-    tf->SetTransform(t);
-    tf->Update();
-
-    vtkDataSet *data = vtkDataSet::SafeDownCast(tf->GetOutput());
+		selectEnclosedPoints->Initialize(meshData);
+		selectEnclosedPoints->SetTolerance(0.0);
+		meshData->GetBounds(bounds);
+	}
 
     if(config_file_opt.available()) {
         configs = parse_ini_config(config_file_opt.get().string, data);
@@ -197,20 +209,6 @@ int main(int argc, char *argv[]) {
 
     cellLocator->SetDataSet(data);
     cellLocator->BuildLocator();
-
-    vtkSmartPointer<vtkDataSetSurfaceFilter> surfaceFilter =
-            vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
-    surfaceFilter->SetInputData(tf->GetOutput());
-    surfaceFilter->Update();
-
-    vtkPolyData *meshData = surfaceFilter->GetOutput();
-    vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints =
-            vtkSmartPointer<vtkSelectEnclosedPoints>::New();
-
-    selectEnclosedPoints->Initialize(meshData);
-    selectEnclosedPoints->SetTolerance(0.0);
-
-    meshData->GetBounds(bounds);
 
     cout << "End reading mesh" << endl;
 
@@ -323,8 +321,9 @@ int main(int argc, char *argv[]) {
 
             for (int z = 0; z < total_points_z; ++z) {
 
-                double percentage = ((double) count / (double) total_points);
-                print_progress(percentage);
+	            double percentage = ((double) count / (double) total_points);
+				print_progress(percentage);
+
                 count++;
 
                 center_point[0] = centerx;
@@ -445,11 +444,11 @@ int main(int argc, char *argv[]) {
                     cells->InsertCellPoint(pointLocator->IsInsertedPoint(aux7));
                     cells->InsertCellPoint(pointLocator->IsInsertedPoint(aux8));
                 }
-                centerz += dx;
+                centerz += dz;
             }
             centery += dy;
         }
-        centerx += dz;
+        centerx += dx;
     }
 
     converted_mesh.close();
