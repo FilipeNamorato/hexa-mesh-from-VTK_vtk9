@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
 
     double conversion_rate = conversion_rate_opt.get().f64; 
 
-    ofstream converted_mesh;
+    std::ofstream converted_mesh;
     converted_mesh.open (output_file_opt.get().string);
 
     double bounds[6];
