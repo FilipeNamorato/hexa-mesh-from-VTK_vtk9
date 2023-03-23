@@ -35,6 +35,7 @@ void usage(char *p_name) {
     std::cerr << "--conversion_rate | -r, rate that needs to be applied to convert the original mesh size unit to micrometers (optional, default: 1)" << std::endl;
     std::cerr << "--output_file | -o, name of the converted mesh file (optional, default: converted_mesh.alg)" << std::endl;
     std::cerr << "--config_file | -c, name of .ini file that has the configuration to extract the arrays data from the VTU file (optional, default: not used)" << std::endl;
+    std::cerr << "--2d | -2, set this option if the mesh has no z coordinate" << std::endl;
     std::cerr << "--help | -h. Shows this help and exit" << std::endl;
     exit(EXIT_FAILURE);
 
@@ -67,36 +68,39 @@ bool valid_extension(const std::string& filename) {
 
 int main(int argc, char *argv[]) {
 
-	po::parser parser;
+    po::parser parser;
     auto& input_mesh_opt = parser["input_mesh"]
-		.abbreviation('i')            
-        .type(po::string);            
+        .abbreviation('i')
+        .type(po::string);
 
-	auto& desired_dx_opt = parser["dx"]  
-		.abbreviation('x')            
-        .type(po::f64);            
-
-	auto& desired_dy_opt = parser["dy"]  
-		.abbreviation('y')            
+    auto& desired_dx_opt = parser["dx"]
+        .abbreviation('x')
         .type(po::f64);
 
-	auto& desired_dz_opt = parser["dz"]  
-		.abbreviation('z')            
-        .type(po::f64);            
+    auto& desired_dy_opt = parser["dy"]
+        .abbreviation('y')
+        .type(po::f64);
 
-	auto& conversion_rate_opt = parser["conversion_rate"]
-		.abbreviation('r')            
+    auto& desired_dz_opt = parser["dz"]
+        .abbreviation('z')
+        .type(po::f64);
+
+    auto& conversion_rate_opt = parser["conversion_rate"]
+        .abbreviation('r')
         .type(po::f64)
         .fallback(1.0);
 
-	auto& output_file_opt = parser["output_file"]  
-		.abbreviation('o')            
+    auto& output_file_opt = parser["output_file"]
+        .abbreviation('o')
         .type(po::string)
-		.fallback("converted_mesh.alg");  
+        .fallback("converted_mesh.alg");
 
-	auto& config_file_opt = parser["config_file"]  
-		.abbreviation('c')            
+    auto& config_file_opt = parser["config_file"]
+        .abbreviation('c')
         .type(po::string);
+
+    auto& _2d_opt = parser["2d"]
+        .abbreviation('2');
 
     auto& help_opt = parser["help"]
             .abbreviation('h');
@@ -107,14 +111,16 @@ int main(int argc, char *argv[]) {
         usage(argv[0]);
     }
 
-	bool error = !input_mesh_opt.available() || !desired_dx_opt.available() || !desired_dy_opt.available() || !desired_dz_opt.available();
+    bool _2d = _2d_opt.was_set();
+
+    bool error = !input_mesh_opt.available() || !desired_dx_opt.available() || !desired_dy_opt.available() || !desired_dz_opt.available();
 
     if(error) {
         std::cout << "Wrong number of arguments!" << std::endl << std::endl;
-		usage(argv[0]);
-	}
+        usage(argv[0]);
+    }
 
-	auto input_file = input_mesh_opt.get().string;
+    auto input_file = input_mesh_opt.get().string;
 
     if (!valid_extension(input_file)) {
         cerr << "Invalid input file! Please convert your mesh to VTU format (.vtu extension)!" << endl;
@@ -138,7 +144,7 @@ int main(int argc, char *argv[]) {
     }
     cout << "================================================================================" << endl << endl;
 
-	//TODO: print usage and print the input configurations on the screen
+    //TODO: print usage and print the input configurations on the screen
 
     std::vector<dataConfig> *configs = nullptr;
 
@@ -151,10 +157,10 @@ int main(int argc, char *argv[]) {
     reader->Update();
 
     double dx = desired_dx_opt.get().f64;
-    double dy = desired_dy_opt.get().f64; 
+    double dy = desired_dy_opt.get().f64;
     double dz = desired_dz_opt.get().f64;
 
-    double conversion_rate = conversion_rate_opt.get().f64; 
+    double conversion_rate = conversion_rate_opt.get().f64;
 
     std::ofstream converted_mesh;
     converted_mesh.open (output_file_opt.get().string);
@@ -166,32 +172,43 @@ int main(int argc, char *argv[]) {
     double mesh_min_x = bounds[0], mesh_min_y = bounds[2], mesh_min_z = bounds[4];
 
     vtkDataSet *data;
-	vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints =  vtkSmartPointer<vtkSelectEnclosedPoints>::New();
-	//Translating the original mesh
-	vtkSmartPointer<vtkTransform> t = vtkSmartPointer<vtkTransform>::New();
-	t->Translate(-mesh_min_x, -mesh_min_y, -mesh_min_z);
+    vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints =  vtkSmartPointer<vtkSelectEnclosedPoints>::New();
+    //Translating the original mesh
+    vtkSmartPointer<vtkTransform> t = vtkSmartPointer<vtkTransform>::New();
+    t->Translate(-mesh_min_x, -mesh_min_y, -mesh_min_z);
 
-	vtkSmartPointer<vtkTransformFilter> tf = vtkSmartPointer<vtkTransformFilter>::New();
+    vtkSmartPointer<vtkTransformFilter> tf = vtkSmartPointer<vtkTransformFilter>::New();
 
-	cout << "Translating mesh to 0, 0, 0" << endl;
-	tf->SetInputData(reader->GetOutput());
-	tf->SetTransform(t);
-	tf->Update();
-	
-	//This is used to extract the arrays in the VTU mesh
-	data = vtkDataSet::SafeDownCast(tf->GetOutput());
+    cout << "Translating mesh to 0, 0, 0" << endl;
+    tf->SetInputData(reader->GetOutput());
+    tf->SetTransform(t);
+    tf->Update();
+    /*
+    {
 
-	
-	vtkSmartPointer<vtkDataSetSurfaceFilter> surfaceFilter = vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
-	surfaceFilter->SetInputData(tf->GetOutput());
-	surfaceFilter->Update();
-	{
-		vtkPolyData *meshData = surfaceFilter->GetOutput();
+        vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer =
+            vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
 
-		selectEnclosedPoints->Initialize(meshData);
-		selectEnclosedPoints->SetTolerance(0.0);
-		meshData->GetBounds(bounds);
-	}
+        writer->SetInputData(tf->GetOutput());
+        writer->SetFileName("converted_mesh.vtu");
+        writer->Write();
+        exit(0);
+    }
+    */
+    //This is used to extract the arrays in the VTU mesh
+    data = vtkDataSet::SafeDownCast(tf->GetOutput());
+
+
+    vtkSmartPointer<vtkDataSetSurfaceFilter> surfaceFilter = vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
+    surfaceFilter->SetInputData(tf->GetOutput());
+    surfaceFilter->Update();
+    {
+        vtkPolyData *meshData = surfaceFilter->GetOutput();
+
+        selectEnclosedPoints->Initialize(meshData);
+        selectEnclosedPoints->SetTolerance(0.0);
+        meshData->GetBounds(bounds);
+    }
 
     if(config_file_opt.available()) {
         configs = parse_ini_config(config_file_opt.get().string, data);
@@ -321,39 +338,44 @@ int main(int argc, char *argv[]) {
 
             for (int z = 0; z < total_points_z; ++z) {
 
-	            double percentage = ((double) count / (double) total_points);
-				print_progress(percentage);
+                double percentage = ((double) count / (double) total_points);
+                print_progress(percentage);
 
                 count++;
 
                 center_point[0] = centerx;
                 center_point[1] = centery;
-                center_point[2] = centerz;
+
+                if(_2d) {
+                    center_point[2] = 0.0;
+                }
+                else {
+                    center_point[2] = centerz;
+                }
 
                 if (selectEnclosedPoints->IsInsideSurface(center_point)) {
 
                     static int add_counter = 0;
 
-                    double closestPoint[3];  // the coordinates of the closest point will
-                    // be returned here
-                    double closestPointDist2;// the squared distance to the closest point
-                    // will be returned here
-                    vtkIdType cellId;        // the cell id of the cell containing the closest
-                    // point will be returned here
-                    vtkIdType pointId;
-                    int subId;// this is rarely used (in triangle strips only, I believe)
-
-                    cellLocator->FindClosestPoint(center_point, closestPoint, cellId, subId, closestPointDist2);
-
-                    pointId = pointLoc->FindClosestPoint(center_point);
-
+                    vtkIdType pointId = pointLoc->FindClosestPoint(center_point);
                     converted_mesh << centerx*conversion_rate << "," << centery*conversion_rate << "," << centerz *conversion_rate << ","
-                                   << halfl * conversion_rate << "," << halfl * conversion_rate << "," << halfl * conversion_rate;
+                        << halfl * conversion_rate << "," << halfl * conversion_rate << "," << halfl * conversion_rate;
 
                     if(!configs || configs->empty()) {
                         converted_mesh << endl;
                     }
                     else {
+                        double closestPoint[3];  // the coordinates of the closest point will
+                                                 // be returned here
+                        double closestPointDist2;// the squared distance to the closest point
+                                                 // will be returned here
+                        vtkIdType cellId;        // the cell id of the cell containing the closest
+                                                 // point will be returned here
+                        int subId;// this is rarely used (in triangle strips only, I believe)
+
+                        cellLocator->FindClosestPoint(center_point, closestPoint, cellId, subId, closestPointDist2);
+
+
                         for(auto & config : *configs) {
 
                             vtkIdType dataLocation;
