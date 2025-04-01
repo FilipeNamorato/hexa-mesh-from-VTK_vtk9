@@ -35,7 +35,8 @@ void usage(char *p_name) {
     std::cerr << "--conversion_rate | -r, rate that needs to be applied to convert the original mesh size unit to micrometers (optional, default: 1)" << std::endl;
     std::cerr << "--output_file | -o, name of the converted mesh file (optional, default: converted_mesh.alg)" << std::endl;
     std::cerr << "--config_file | -c, name of .ini file that has the configuration to extract the arrays data from the VTU file (optional, default: not used)" << std::endl;
-    std::cerr << "--2d | -2, set this option if the mesh has no z coordinate" << std::endl;
+    std::cerr << "--2d | -2, set this option if the mesh has no z coordinate (optional, default: not used)"  << std::endl;
+    std::cerr << "--no_translate | -t, set this option to not translate the mesh (optional, default: not used) " << std::endl;
     std::cerr << "--help | -h. Shows this help and exit" << std::endl;
     exit(EXIT_FAILURE);
 
@@ -102,6 +103,9 @@ int main(int argc, char *argv[]) {
     auto& _2d_opt = parser["2d"]
         .abbreviation('2');
 
+    auto& no_translate_opt = parser["no_translate"]
+        .abbreviation('t');
+
     auto& help_opt = parser["help"]
             .abbreviation('h');
 
@@ -112,6 +116,8 @@ int main(int argc, char *argv[]) {
     }
 
     bool _2d = _2d_opt.was_set();
+
+    bool translate = !no_translate_opt.was_set();
 
     bool error = !input_mesh_opt.available() || !desired_dx_opt.available() || !desired_dy_opt.available() || !desired_dz_opt.available();
 
@@ -173,42 +179,35 @@ int main(int argc, char *argv[]) {
 
     vtkDataSet *data;
     vtkSmartPointer<vtkSelectEnclosedPoints> selectEnclosedPoints =  vtkSmartPointer<vtkSelectEnclosedPoints>::New();
-    //Translating the original mesh
-    vtkSmartPointer<vtkTransform> t = vtkSmartPointer<vtkTransform>::New();
-    t->Translate(-mesh_min_x, -mesh_min_y, -mesh_min_z);
-
-    vtkSmartPointer<vtkTransformFilter> tf = vtkSmartPointer<vtkTransformFilter>::New();
-
-    cout << "Translating mesh to 0, 0, 0" << endl;
-    tf->SetInputData(reader->GetOutput());
-    tf->SetTransform(t);
-    tf->Update();
-    /*
-    {
-
-        vtkSmartPointer<vtkXMLUnstructuredGridWriter> writer =
-            vtkSmartPointer<vtkXMLUnstructuredGridWriter>::New();
-
-        writer->SetInputData(tf->GetOutput());
-        writer->SetFileName("converted_mesh.vtu");
-        writer->Write();
-        exit(0);
-    }
-    */
-    //This is used to extract the arrays in the VTU mesh
-    data = vtkDataSet::SafeDownCast(tf->GetOutput());
-
-
     vtkSmartPointer<vtkDataSetSurfaceFilter> surfaceFilter = vtkSmartPointer<vtkDataSetSurfaceFilter>::New();
-    surfaceFilter->SetInputData(tf->GetOutput());
-    surfaceFilter->Update();
-    {
-        vtkPolyData *meshData = surfaceFilter->GetOutput();
 
-        selectEnclosedPoints->Initialize(meshData);
-        selectEnclosedPoints->SetTolerance(0.0);
-        meshData->GetBounds(bounds);
+    if(translate) {
+        //Translating the original mesh
+        vtkSmartPointer<vtkTransform> t = vtkSmartPointer<vtkTransform>::New();
+        t->Translate(-mesh_min_x, -mesh_min_y, -mesh_min_z);
+
+        vtkSmartPointer<vtkTransformFilter> tf = vtkSmartPointer<vtkTransformFilter>::New();
+
+        cout << "Translating mesh to 0, 0, 0" << endl;
+        tf->SetInputData(reader->GetOutput());
+        tf->SetTransform(t);
+        tf->Update();
+
+        //This is used to extract the arrays in the VTU mesh
+        data = vtkDataSet::SafeDownCast(tf->GetOutput());
+        surfaceFilter->SetInputData(tf->GetOutput());
+    } else {
+        data = vtkDataSet::SafeDownCast(reader->GetOutput());
+        surfaceFilter->SetInputData(reader->GetOutput());
     }
+
+    surfaceFilter->Update();
+    vtkPolyData *meshData = surfaceFilter->GetOutput();
+
+    selectEnclosedPoints->Initialize(meshData);
+    selectEnclosedPoints->SetTolerance(0.0);
+    meshData->GetBounds(bounds);
+
 
     if(config_file_opt.available()) {
         configs = parse_ini_config(config_file_opt.get().string, data);
@@ -229,17 +228,21 @@ int main(int argc, char *argv[]) {
 
     cout << "End reading mesh" << endl;
 
-    double mesh_max_x = bounds[1], mesh_max_y = bounds[3], mesh_max_z = bounds[5];
+    double mesh_max_x, mesh_max_y, mesh_max_z;
 
     double min_x = 0, min_y = 0, min_z = 0;
-    double max_x = mesh_max_x + dx, max_y = mesh_max_y + dy,
-            max_z = mesh_max_z + dz;
 
+    double max_x, max_y, max_z;
 
     mesh_min_x = bounds[0], mesh_min_y = bounds[2], mesh_min_z = bounds[4];
     mesh_max_x = bounds[1], mesh_max_y = bounds[3], mesh_max_z = bounds[5];
 
-    min_x = 0, min_y = 0, min_z = 0;
+    if (translate) {
+        min_x = 0, min_y = 0, min_z = 0;
+    } else {
+        min_x = mesh_min_x - dx, min_y = mesh_min_y - dy, min_z = mesh_min_z - dz;
+    }
+
     max_x = mesh_max_x + dx, max_y = mesh_max_y + dy,
             max_z = mesh_max_z + dz;
 
