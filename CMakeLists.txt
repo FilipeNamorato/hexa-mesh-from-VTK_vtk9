@@ -1,15 +1,27 @@
-cmake_minimum_required(VERSION 2.6)
- 
+cmake_minimum_required(VERSION 3.12)  # Recomendo pelo menos 3.12 para bom suporte ao VTK 9
+
 project(HexaMeshFromVTK)
-find_package(VTK REQUIRED)
-include(${VTK_USE_FILE})
- 
+
+# Especifica explicitamente os módulos que você está usando (com base no seu main.cpp)
+find_package(VTK REQUIRED COMPONENTS
+    CommonCore
+    CommonDataModel
+    FiltersCore
+    FiltersGeneral
+    FiltersPoints
+    IOXML
+    IOXMLParser
+    FiltersSources
+    FiltersGeometry
+)
+
+# Definir saída dos binários
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_executable(HexaMeshFromVTK src/main.cpp src/config.cpp src/ProgramOptions.hxx)
+# Criar o executável
+add_executable(HexaMeshFromVTK src/main.cpp src/config.cpp)
 
-if(VTK_LIBRARIES)
-  target_link_libraries(HexaMeshFromVTK ${VTK_LIBRARIES})
-else()
-  target_link_libraries(HexaMeshFromVTK vtkHybrid)
-endif()
+# Linkar com VTK
+target_link_libraries(HexaMeshFromVTK PRIVATE ${VTK_LIBRARIES})
+
+target_include_directories(HexaMeshFromVTK PRIVATE src)
