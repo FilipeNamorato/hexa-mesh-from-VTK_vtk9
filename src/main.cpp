@@ -342,7 +342,7 @@ int main(int argc, char *argv[]) {
             for (int z = 0; z < total_points_z; ++z) {
 
                 double percentage = ((double) count / (double) total_points);
-                print_progress(percentage);
+                //print_progress(percentage);
 
                 count++;
 
