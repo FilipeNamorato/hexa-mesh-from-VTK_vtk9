@@ -24,6 +24,8 @@
 
 #include "ProgramOptions.hxx"
 #include <iostream>
+#include <fstream>
+#include <unistd.h>
 
 void usage(char *p_name) {
     std::cerr << "Usage: " << p_name << " [options]" << std::endl << std::endl;
@@ -49,8 +51,13 @@ void print_progress(double percentage) {
     int val = (int) (percentage * 100);
     int lpad = (int) (percentage * PBWIDTH);
     int rpad = PBWIDTH - lpad;
-    printf("\rProgress - %3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
-    fflush(stdout);
+    if (isatty(fileno(stdout))) {
+        printf("\rProgress - %3d%% [%.*s%*s]", val, lpad, PBSTR, rpad, "");
+        fflush(stdout);
+    } else {
+        printf("Progress - %3d%% [%.*s%*s]\n", val, lpad, PBSTR, rpad, "");
+        fflush(stdout);
+    }
 }
 
 bool valid_extension(const std::string& filename) {
@@ -106,6 +113,10 @@ int main(int argc, char *argv[]) {
     auto& no_translate_opt = parser["no_translate"]
         .abbreviation('t');
 
+    auto& log_file_opt = parser["log_file"]
+        .abbreviation('l')
+        .type(po::string);
+
     auto& help_opt = parser["help"]
             .abbreviation('h');
 
@@ -114,6 +125,18 @@ int main(int argc, char *argv[]) {
     if(help_opt.was_set()) {
         usage(argv[0]);
     }
+
+    std::ofstream log_file_stream;
+    if (log_file_opt.was_set()) {
+        log_file_stream.open(log_file_opt.get().string, std::ios::app);
+    }
+    auto log = [&](const std::string& msg) {
+        std::cout << msg << std::endl;
+        if (log_file_stream.is_open()) {
+            log_file_stream << msg << std::endl;
+            log_file_stream.flush();
+        }
+    };
 
     bool _2d = _2d_opt.was_set();
 
@@ -188,7 +211,7 @@ int main(int argc, char *argv[]) {
 
         vtkSmartPointer<vtkTransformFilter> tf = vtkSmartPointer<vtkTransformFilter>::New();
 
-        cout << "Translating mesh to 0, 0, 0" << endl;
+        log("Translating mesh to 0, 0, 0");
         tf->SetInputData(reader->GetOutput());
         tf->SetTransform(t);
         tf->Update();
@@ -226,7 +249,7 @@ int main(int argc, char *argv[]) {
     cellLocator->SetDataSet(data);
     cellLocator->BuildLocator();
 
-    cout << "End reading mesh" << endl;
+    log("End reading mesh");
 
     double mesh_max_x, mesh_max_y, mesh_max_z;
 
@@ -246,13 +269,12 @@ int main(int argc, char *argv[]) {
     max_x = mesh_max_x + dx, max_y = mesh_max_y + dy,
             max_z = mesh_max_z + dz;
 
-    cout << "Mesh X from " << mesh_min_x << " to " << mesh_max_x << endl;
-    cout << "Mesh Y from " << mesh_min_y << " to " << mesh_max_y << endl;
-    cout << "Mesh Z from " << mesh_min_z << " to " << mesh_max_z << endl;
-
-    cout << "X from " << min_x << " to " << max_x << endl;
-    cout << "Y from " << min_y << " to " << max_y << endl;
-    cout << "Z from " << min_z << " to " << max_z << endl;
+    log("Mesh X from " + std::to_string(mesh_min_x) + " to " + std::to_string(mesh_max_x));
+    log("Mesh Y from " + std::to_string(mesh_min_y) + " to " + std::to_string(mesh_max_y));
+    log("Mesh Z from " + std::to_string(mesh_min_z) + " to " + std::to_string(mesh_max_z));
+    log("X from " + std::to_string(min_x) + " to " + std::to_string(max_x));
+    log("Y from " + std::to_string(min_y) + " to " + std::to_string(max_y));
+    log("Z from " + std::to_string(min_z) + " to " + std::to_string(max_z));
 
     vtkSmartPointer<vtkMergePoints> pointLocator =
             vtkSmartPointer<vtkMergePoints>::New();
@@ -330,6 +352,7 @@ int main(int argc, char *argv[]) {
 
     int total_points = total_points_x * total_points_y * total_points_z;
     int count = 1;
+    int last_printed_pct = -1;
 
     for (int i = 0; i < total_points_x; ++i) {
 
@@ -342,7 +365,11 @@ int main(int argc, char *argv[]) {
             for (int z = 0; z < total_points_z; ++z) {
 
                 double percentage = ((double) count / (double) total_points);
-                print_progress(percentage);
+                int cur_pct = (int)(percentage * 100);
+                if (cur_pct > last_printed_pct) {
+                    print_progress(percentage);
+                    last_printed_pct = cur_pct;
+                }
 
                 count++;
 
